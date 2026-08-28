@@ -195,6 +195,8 @@ Optional config block that switches the engine to a signed request object (JAR):
 | `walletAuthorizationEndpoint` | Replaces the `openid4vp://` scheme the library emits               |
 | `credential`                  | `{ doctype, claims }`. Defaults to the mDL doctype + `age_over_18` |
 
+Lab-only: setting `doctype` to the German sandbox PID mdoc doctype (`eu.europa.ec.eudi.pid.1`) switches the query to a dual-format ask, SD-JWT VC and mdoc offered together via DCQL `credential_sets`, and `vpFormatsSupported` always advertises both `mso_mdoc` and `dc+sd-jwt` when `haip` is set. Only `age_over_18` has a claim mapping today; other claims are dropped. Not part of the OID4VP+HAIP certification above: see `docs/SUPPORTED.md` for supported vs roadmap status.
+
 Response-encryption keys are generated per session (fresh P-256 keypair per `createSession` call, not configurable) — HAIP 1.0 requires verifiers not reuse a response-encryption key across Authorization Requests. When `haip` is set, `engine.redirectUri` is populated and echoed on every `/callback` response body (HAIP 1.0 §5.1); it's `undefined` for the plain `direct_post` path, matching OID4VP's optional field.
 
 ## Handlers

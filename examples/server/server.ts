@@ -43,6 +43,11 @@ async function loadHaipConfig(): Promise<
     crypto.subtle.importKey("jwk", publicJwk, signAlg, true, ["verify"]),
   ]);
 
+  // Defaults to the engine's mDL credential ask. Override for other doctypes,
+  // e.g. the German sandbox PID: EUDI_HAIP_DOCTYPE=eu.europa.ec.eudi.pid.1
+  // EUDI_HAIP_CLAIMS=age_over_18
+  const doctype = process.env.EUDI_HAIP_DOCTYPE;
+
   return {
     signer: { privateKey, publicKey },
     certificateChain: [
@@ -50,6 +55,15 @@ async function loadHaipConfig(): Promise<
     ],
     requestUriBase: `${BASE_URL}/request`,
     walletAuthorizationEndpoint: process.env.EUDI_HAIP_WALLET_AUTH_ENDPOINT,
+    ...(doctype && {
+      credential: {
+        doctype,
+        claims: (process.env.EUDI_HAIP_CLAIMS ?? "age_over_18")
+          .split(",")
+          .map((c) => c.trim())
+          .filter(Boolean),
+      },
+    }),
   };
 }
 
@@ -427,6 +441,9 @@ bootstrap().then(() => {
       if (process.env.EUDI_HAIP_DIR) {
         console.log(
           `    HAIP enabled, EUDI_HAIP_DIR=${process.env.EUDI_HAIP_DIR}`,
+        );
+        console.log(
+          `    credential: ${process.env.EUDI_HAIP_DOCTYPE || "org.iso.18013.5.1.mDL (default)"}`,
         );
       }
       if (trust === "skip") {

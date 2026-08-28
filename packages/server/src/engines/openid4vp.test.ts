@@ -3,10 +3,15 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { X509Certificate, type webcrypto } from "node:crypto";
 import { describe, it, expect } from "vitest";
-import { decodeJwt, CompactEncrypt } from "jose";
+import { decodeJwt, CompactEncrypt, SignJWT } from "jose";
 import { Openid4vpEngine } from "./openid4vp.js";
 import { StaticTrustStore } from "@openeudi/openid4vp";
-import { buildAvDcqlQuery, AV_DOCTYPE } from "./openid4vp-mappers.js";
+import {
+  buildAvDcqlQuery,
+  AV_DOCTYPE,
+  buildPidDcqlQuery,
+  PID_SDJWT_VCT,
+} from "./openid4vp-mappers.js";
 import type { Session } from "../types.js";
 
 const fixturesDir = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
@@ -530,6 +535,140 @@ describe("Openid4vpEngine", () => {
       ).encryptionJwk;
 
       expect(firstJwk.kid).not.toBe(secondJwk.kid);
+    });
+  });
+
+  /**
+   * PID DCQL (`buildPidDcqlQuery`) offers SD-JWT VC + mdoc together via
+   * `credential_sets` in one session; the wallet presents whichever it
+   * holds. These tests exercise the SD-JWT branch end to end, including the
+   * `age_equal_or_over.18` -> `age_over_18` claim-key remap in
+   * `verifyResultToClaims` (the "silent wrong answer" risk CP3 flagged).
+   */
+  describe("PID DCQL (SD-JWT presentation)", () => {
+    const haipSigner = JSON.parse(
+      readFileSync(join(fixturesDir, "haip-signer.json"), "utf8"),
+    ) as { certDerBase64: string; privateKeyPkcs8Base64: string };
+
+    const nonce = "pid-sdjwt-test-nonce";
+    const clientId = "x509_hash:test-client";
+    const responseUri = "https://verify.example.com/api/eudi/callback";
+
+    function buildEngine(): Openid4vpEngine {
+      return new Openid4vpEngine({
+        mode: "production",
+        baseUrl: "https://verify.example.com/api/eudi",
+        skipTrustCheck: true,
+        acknowledgeInsecureTrust: true,
+      });
+    }
+
+    function sessionWith(
+      dcqlQuery = buildPidDcqlQuery(["age_over_18"]),
+    ): Session {
+      const engineData = {
+        nonce,
+        requestedClaims: ["age_over_18"],
+        dcqlQuery,
+        clientId,
+        responseUri,
+        createdAt: Date.now(),
+      };
+      return {
+        id: "pid-sdjwt-sess",
+        status: "pending",
+        request: { age_over_18: true },
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 300_000),
+        _engineData: engineData,
+      };
+    }
+
+    /**
+     * Builds a holder-bound SD-JWT VC (zero disclosures — the age claim is
+     * plaintext, selective disclosure is orthogonal to what this test
+     * covers) signed by the HAIP lab issuer cert, plus a matching KB-JWT.
+     * `tamperKbJwt` flips a character in the KB-JWT signature to prove a
+     * broken signature fails closed rather than being silently accepted.
+     */
+    async function buildSdJwtVpToken(
+      opts: { tamperKbJwt?: boolean } = {},
+    ): Promise<string> {
+      const issuerPrivateKey = await crypto.subtle.importKey(
+        "pkcs8",
+        Buffer.from(haipSigner.privateKeyPkcs8Base64, "base64"),
+        { name: "ECDSA", namedCurve: "P-256" },
+        true,
+        ["sign"],
+      );
+      const holderKeyPair = (await crypto.subtle.generateKey(
+        { name: "ECDSA", namedCurve: "P-256" },
+        true,
+        ["sign", "verify"],
+      )) as webcrypto.CryptoKeyPair;
+      const holderPublicJwk = await crypto.subtle.exportKey(
+        "jwk",
+        holderKeyPair.publicKey,
+      );
+
+      const issuerJwt = await new SignJWT({
+        vct: PID_SDJWT_VCT,
+        cnf: { jwk: holderPublicJwk },
+        age_equal_or_over: { "18": true },
+      })
+        .setProtectedHeader({ alg: "ES256", x5c: [haipSigner.certDerBase64] })
+        .setIssuedAt()
+        .setIssuer("https://pid-provider.example")
+        .sign(issuerPrivateKey);
+
+      // No disclosures: splitSdJwt/decodeSdJwt treat `<jwt>~<kbJwt>` (a
+      // single separator) as zero disclosures plus a trailing KB-JWT.
+      const sdHashInput = `${issuerJwt}~`;
+      const sdHashBytes = await crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(sdHashInput),
+      );
+      const sdHash = Buffer.from(sdHashBytes).toString("base64url");
+
+      let kbJwt = await new SignJWT({ nonce, sd_hash: sdHash })
+        .setProtectedHeader({ alg: "ES256", typ: "kb+jwt" })
+        .setIssuedAt()
+        .setAudience(clientId)
+        .sign(holderKeyPair.privateKey);
+
+      if (opts.tamperKbJwt) {
+        kbJwt =
+          kbJwt.slice(0, -4) + (kbJwt.slice(-4) === "AAAA" ? "BBBB" : "AAAA");
+      }
+
+      return `${issuerJwt}~${kbJwt}`;
+    }
+
+    it("accepts an SD-JWT PID presentation and remaps age_equal_or_over.18 to age_over_18", async () => {
+      const vpToken = { "pid-sd-jwt": [await buildSdJwtVpToken()] };
+
+      const result = await buildEngine().handleCallback(
+        { sessionId: "pid-sdjwt-sess", vpToken, state: "pid-sdjwt-sess" },
+        sessionWith(),
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.status).toBe("verified");
+      expect(result.claims).toEqual({ age_over_18: true });
+    });
+
+    it("fails closed when the key-binding JWT is tampered", async () => {
+      const vpToken = {
+        "pid-sd-jwt": [await buildSdJwtVpToken({ tamperKbJwt: true })],
+      };
+
+      const result = await buildEngine().handleCallback(
+        { sessionId: "pid-sdjwt-sess", vpToken, state: "pid-sdjwt-sess" },
+        sessionWith(),
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.status).toBe("rejected");
     });
   });
 

@@ -142,7 +142,8 @@
 
 - Demo path: VP verification delegated to `@openeudi/core` `DemoMode` (simulated credentials; age + country only)
 - Production path (`Openid4vpEngine` / `@openeudi/openid4vp`): cryptographic DeviceSignature + issuer signature verification, DCQL match, and mdoc SessionTranscript binding (`clientId`, `responseUri`, `nonce` via OpenID4VP 1.0 unencrypted handover for plain `direct_post`)
-- Negative binding tests assert independently mutating `clientId` / `responseUri` / `nonce` rejects a captured wallet presentation
+- SD-JWT VC path (PID, HAIP mode only): issuer signature verification, key-binding JWT (KB-JWT) signed by the holder's `cnf.jwk`, checked for `nonce` match, `sd_hash` binding to the exact disclosed SD-JWT, and `aud` matching the session's resolved `client_id` (`Openid4vpEngine.handleCallback`'s `audience` option) — a tampered or replayed KB-JWT signature fails closed
+- Negative binding tests assert independently mutating `clientId` / `responseUri` / `nonce` rejects a captured wallet presentation, and (SD-JWT) that a tampered KB-JWT signature is rejected
 
 **Residual Risk**: Negligible when production engine + anchored trust are used — cryptographic guarantees
 

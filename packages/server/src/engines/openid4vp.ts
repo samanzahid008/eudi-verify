@@ -48,6 +48,8 @@ import type { Session, VerifierMode } from "../types.js";
 import {
   buildAvDcqlQuery,
   buildMdlDcqlQuery,
+  buildPidDcqlQuery,
+  PID_MDOC_DOCTYPE,
   requestedClaimKeys,
   verifyResultToClaims,
 } from "./openid4vp-mappers.js";
@@ -257,7 +259,12 @@ export class Openid4vpEngine implements VerifierEngine {
       doctype: DEFAULT_HAIP_DOCTYPE,
       claims: DEFAULT_HAIP_CLAIMS,
     };
-    const dcqlQuery = buildMdlDcqlQuery(doctype, claims);
+    // The German sandbox PID profile offers SD-JWT VC + mdoc together; every
+    // other HAIP doctype (mDL, OIDF conformance) keeps the single-mdoc ask.
+    const dcqlQuery =
+      doctype === PID_MDOC_DOCTYPE
+        ? buildPidDcqlQuery(claims)
+        : buildMdlDcqlQuery(doctype, claims);
 
     // HAIP requires a fresh response-encryption key per Authorization
     // Request, not one reused across sessions.
@@ -293,7 +300,7 @@ export class Openid4vpEngine implements VerifierEngine {
         signer: haip.signer,
         certificateChain: haip.certificateChain,
         encryptionKey: { publicJwk: encryptionJwk },
-        vpFormatsSupported: { mso_mdoc: {} },
+        vpFormatsSupported: { mso_mdoc: {}, "dc+sd-jwt": {} },
       },
       dcqlQuery,
     );
@@ -438,7 +445,10 @@ export class Openid4vpEngine implements VerifierEngine {
           nonce: engineData.nonce,
           clientId: engineData.clientId,
           responseUri: engineData.responseUri,
-          audience: this.audience,
+          // SD-JWT key-binding JWTs carry `aud: client_id`. Default to the
+          // session's resolved client_id (HAIP: x509_hash:<leaf hash>, stable
+          // across sessions for a given cert) rather than requiring config.audience.
+          audience: this.audience ?? engineData.clientId,
           trustedCertificates: [],
           mdocSessionTranscript,
           ...(this.trustStore
