@@ -4,6 +4,15 @@ Thank you for your interest in contributing to eudi-verify!
 
 **Agent / AI tooling:** see [AGENTS.md](AGENTS.md) for read-first docs, verify-first expectations, and how `.cursor/rules/` relates to this guide.
 
+## Where to start
+
+- **Open starter issues:** [github.com/eudi-verify/eudi-verify/contribute](https://github.com/eudi-verify/eudi-verify/contribute) lists everything labeled `good first issue`. Comment on one before you start so nobody duplicates the work.
+- **What is shipped vs planned:** [docs/SUPPORTED.md](docs/SUPPORTED.md) is canonical. Check it before writing docs or examples: claiming a package or platform that does not ship yet is the most common thing a PR gets sent back for.
+- **How the pieces fit together:** [docs/INTEGRATION.md](docs/INTEGRATION.md) for the Node quick start, [docs/PLAN.md](docs/PLAN.md) for the roadmap.
+- **Questions before you write code:** [GitHub Discussions](https://github.com/eudi-verify/eudi-verify/discussions).
+
+Before opening a PR: run [`pnpm verify`](#development-setup) (it mirrors CI), and sign your commits with [DCO](#license--developer-certificate-of-origin-dco) (`git commit -s`). Contributors do not need to add a changeset: see [Changesets](#changesets).
+
 ## Development Setup
 
 ```bash
