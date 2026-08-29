@@ -1,5 +1,19 @@
 # @eudi-verify/server
 
+## 1.5.0
+
+### Minor Changes
+
+- [#57](https://github.com/eudi-verify/eudi-verify/pull/57) [`abc5d4d`](https://github.com/eudi-verify/eudi-verify/commit/abc5d4d78bb011c454b9213bfb5c8756cc67da7a) Thanks [@mkascel](https://github.com/mkascel)! - Add PID SD-JWT VC support alongside mdoc on the HAIP path. `Openid4vpEngine` now offers both formats for the PID doctype in a single DCQL query via `credential_sets`: SD-JWT VC (`urn:eudi:pid:de:1`, claim path `age_equal_or_over.18`) and mdoc (`eu.europa.ec.eudi.pid.1`, claim path `eu.europa.ec.eudi.pid.1/age_over_18`). The wallet picks whichever it holds.
+
+  Both formats are verified end to end against the German EUDI Ecosystem Sandbox wallet with a registrar-issued access certificate (see [docs/INTEROP.md](https://github.com/eudi-verify/eudi-verify/blob/main/docs/INTEROP.md)). Issuer trust anchoring is unchanged and still opt-in.
+
+### Patch Changes
+
+- [#58](https://github.com/eudi-verify/eudi-verify/pull/58) [`5412ba9`](https://github.com/eudi-verify/eudi-verify/commit/5412ba97b4873366cd7fb8f05327cdba982b8ede) Thanks [@mkascel](https://github.com/mkascel)! - Fix verification of the non-first format in a dual-format PID request. `@openeudi/openid4vp` decides how to decode a presentation by reading `query.credentials[0].format` rather than the format actually presented, so with the SD-JWT-first ordering that `buildPidDcqlQuery` uses, an mdoc presentation failed closed with a parser error. The engine now reorders the query it hands the library so the credential named in `vp_token` sits at index 0, which the response itself identifies (OpenID4VP 1.0 §8.1). Both formats now verify against the same dual-format ask.
+
+  This is caller-side compensation for an upstream bug and is marked for removal once `@openeudi/openid4vp` dispatches on the presented credential.
+
 ## 1.4.2
 
 ### Patch Changes

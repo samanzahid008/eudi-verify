@@ -1,6 +1,6 @@
 {
   "name": "@eudi-verify/server",
-  "version": "1.4.2",
+  "version": "1.5.0",
   "description": "Framework-agnostic REST API handlers for EUDI Wallet verification",
   "type": "module",
   "engines": {

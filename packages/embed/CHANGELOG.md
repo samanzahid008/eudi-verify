@@ -1,5 +1,12 @@
 # @eudi-verify/embed
 
+## 1.5.0
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @eudi-verify/client@1.5.0
+
 ## 1.4.2
 
 ### Patch Changes

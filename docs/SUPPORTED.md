@@ -2,7 +2,7 @@
 
 **Canonical reference** for what works today vs what is planned. Update this file whenever support changes; keep [README.md](../README.md) in sync.
 
-**Current release:** v1.4.2 — all four packages (`@eudi-verify/server`, `@eudi-verify/client`, `@eudi-verify/embed`, `@eudi-verify/react`) share a single version line. Stable integration API; demo engine by default, optional OpenID4VP production engine for AV age attestation. See [Current Limitations](../README.md#current-limitations).
+**Current release:** v1.5.0 — all four packages (`@eudi-verify/server`, `@eudi-verify/client`, `@eudi-verify/embed`, `@eudi-verify/react`) share a single version line. Stable integration API; demo engine by default, optional OpenID4VP production engine for AV age attestation. See [Current Limitations](../README.md#current-limitations).
 
 ---
 
