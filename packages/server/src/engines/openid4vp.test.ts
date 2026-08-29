@@ -728,6 +728,41 @@ describe("Openid4vpEngine", () => {
       expect(result.trustLevel).toBe("none");
     });
 
+    /**
+     * Regression: `buildPidDcqlQuery` lists SD-JWT first, and the library
+     * dispatches presentation decoding off `credentials[0].format`. Without
+     * the reorder in `queryForPresented`, this same captured mdoc token is
+     * handed to the SD-JWT parser undecoded and fails closed — meaning an
+     * mdoc-holding wallet could never satisfy a dual-format ask.
+     */
+    it("verifies an mdoc presentation against a dual-format query that lists SD-JWT first", async () => {
+      const session = sessionWith();
+      const mdocCredentials = buildAvDcqlQuery(request).credentials;
+      (session._engineData as { dcqlQuery: unknown }).dcqlQuery = {
+        credentials: [
+          {
+            id: "pid-sd-jwt",
+            format: "dc+sd-jwt",
+            meta: { vct_values: [PID_SDJWT_VCT] },
+            claims: [{ path: ["age_equal_or_over", "18"] }],
+          },
+          ...mdocCredentials,
+        ],
+        credential_sets: [
+          { options: [["pid-sd-jwt"], ["av"]], required: true },
+        ],
+      };
+
+      const result = await buildEngine().handleCallback(
+        { sessionId: state, vpToken, state },
+        session,
+      );
+
+      expect(result.success).toBe(true);
+      expect(result.status).toBe("verified");
+      expect(result.claims).toEqual({ age_over_18: true });
+    });
+
     it.each([
       {
         field: "clientId",

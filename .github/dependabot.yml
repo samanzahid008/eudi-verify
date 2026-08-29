@@ -3,5 +3,11 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 0
+      interval: "daily"
+    # Scoped to @openeudi/* on purpose: the verifier engine tracks that
+    # library closely (a release there can remove a local workaround), and
+    # a PR per release is the notification. Everything else stays off so
+    # the queue does not fill with routine bumps.
+    open-pull-requests-limit: 5
+    allow:
+      - dependency-name: "@openeudi/*"

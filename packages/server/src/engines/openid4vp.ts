@@ -125,6 +125,42 @@ interface Openid4vpSessionData {
 const DEFAULT_HAIP_DOCTYPE = "org.iso.18013.5.1.mDL";
 const DEFAULT_HAIP_CLAIMS = ["age_over_18"];
 
+/**
+ * Reorder a DCQL query so the credential the wallet actually presented sits
+ * at index 0.
+ *
+ * `vp_token` is keyed by the DCQL credential id the wallet chose to satisfy
+ * (OpenID4VP 1.0 §8.1), so the response itself names the format before any
+ * parsing happens. Single-credential queries are returned untouched.
+ *
+ * ponytail: caller-side compensation for a callee bug. `@openeudi/openid4vp`
+ * decides whether to base64url-decode the presentation by reading
+ * `query.credentials[0].format` rather than the format of the credential
+ * actually presented (`verify.ts:285`), and labels the match with
+ * `query.credentials[0].id` for the same reason (`verify.ts:64`). For a
+ * dual-format `credential_sets` ask (`buildPidDcqlQuery`) that means only
+ * the first-listed format can ever verify; the other fails closed with a
+ * parser error. Handing the library a query whose index 0 already matches
+ * the presentation gets both formats right without touching the dependency.
+ * Ceiling: only works because the library rejects multi-credential
+ * responses, so there is exactly one presented id to sort on. Delete this
+ * and pass `engineData.dcqlQuery` straight through once upstream dispatches
+ * on the presented credential (openeudi/openid4vp, see CP4 in
+ * docs/internal/sprind-wallet-cp-handoff.local.md).
+ */
+function queryForPresented(query: DcqlQuery, vpToken: unknown): DcqlQuery {
+  if (query.credentials.length < 2) return query;
+  if (typeof vpToken !== "object" || vpToken === null) return query;
+
+  const presentedId = Object.keys(vpToken)[0];
+  const index = query.credentials.findIndex((c) => c.id === presentedId);
+  if (index <= 0) return query;
+
+  const credentials = [...query.credentials];
+  const [presented] = credentials.splice(index, 1);
+  return { ...query, credentials: [presented, ...credentials] };
+}
+
 /** Resolved trust level for a verified presentation — see THREAT_MODEL.md. */
 export type TrustLevel = "anchored" | "none";
 
@@ -440,7 +476,7 @@ export class Openid4vpEngine implements VerifierEngine {
 
       const result = await verifyAuthorizationResponse(
         envelope,
-        engineData.dcqlQuery,
+        queryForPresented(engineData.dcqlQuery, envelope.vp_token),
         {
           nonce: engineData.nonce,
           clientId: engineData.clientId,
