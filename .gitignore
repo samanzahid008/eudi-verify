@@ -26,5 +26,10 @@ scripts/provision-base.conf
 # Maintainer-local Claude rule (symlink to a gitignored canon file)
 .claude/rules/maintainer-local.md
 
+# Per-machine Claude Code permissions. The tracked parts of .claude/ are the
+# rule adapters and skills, which are shared conventions; this file is not.
+.claude/settings.json
+.claude/settings.local.json
+
 # Lab-only HAIP key material (see docs/internal/haip-spike-plan-v2.local.md)
 .haip-lab/
