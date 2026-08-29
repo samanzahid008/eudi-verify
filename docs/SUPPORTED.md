@@ -28,8 +28,7 @@
 | **React**      | ✅ Supported    | `@eudi-verify/react` — React wrapper with typed props + callbacks          |
 | **Vue**        | ✅ Supported    | Import `@eudi-verify/embed`; configure `<eudi-verify>` as a custom element |
 | **Custom UI**  | ✅ Supported    | `@eudi-verify/client` (vanilla TS, zero framework deps)                    |
-| **WordPress**  | 🟡 Manual embed | Add script + element in theme/block; no plugin yet                         |
-
+| **WordPress**  | 🟡 Manual embed | [wordpress.md](https://github.com/eudi-verify/eudi-verify/blob/main/docs/wordpress.md) — add script + element in theme/block; no plugin yet |
 **Documented integration:** [integration-frontend.md](./integration-frontend.md), [packages/embed/README.md](../packages/embed/README.md), [packages/react/README.md](../packages/react/README.md)
 
 **Reference demos:** [examples/html-vanilla](../examples/html-vanilla/) (plain HTML + shared API server), [examples/react](../examples/react/) (React + TypeScript + Vite), [examples/vue](../examples/vue/) (Vue + TypeScript + Vite)
